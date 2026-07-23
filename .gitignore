@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.env
+.venv/
+venv/
+env/
+*.pkl
+*.joblib
+outputs/models/*.pkl
+outputs/models/*.joblib
+.flask_session/
+instance/

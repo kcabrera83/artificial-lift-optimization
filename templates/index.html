@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artificial Lift Optimization</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            border-bottom: 2px solid #10b981;
+            padding: 24px 40px;
+        }
+        .header h1 {
+            font-size: 24px;
+            color: #10b981;
+            font-weight: 700;
+        }
+        .header p { color: #94a3b8; margin-top: 4px; font-size: 14px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px 40px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 24px;
+        }
+        .card h2 {
+            font-size: 16px;
+            color: #10b981;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .full-width { grid-column: 1 / -1; }
+        label {
+            display: block;
+            font-size: 12px;
+            color: #94a3b8;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px 12px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #10b981;
+        }
+        .btn {
+            background: #10b981;
+            color: #0f172a;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-right: 8px;
+            margin-top: 8px;
+        }
+        .btn:hover { background: #34d399; }
+        .btn-secondary { background: #334155; color: #e2e8f0; }
+        .btn-secondary:hover { background: #475569; }
+        .result-box {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+            font-family: 'Cascadia Code', 'Fira Code', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+        }
+        .metric-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+        }
+        .metric {
+            text-align: center;
+            padding: 16px;
+            background: #0f172a;
+            border-radius: 8px;
+        }
+        .metric .value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #10b981;
+        }
+        .metric .label {
+            font-size: 11px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+        .chart-container { position: relative; height: 300px; margin-top: 12px; }
+        .status-dot {
+            display: inline-block;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        .status-ok { background: #10b981; }
+        .status-err { background: #ef4444; }
+        .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+            .metric-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Artificial Lift Optimization</h1>
+        <p>ML-powered optimization for ESP, Rod Pump, and Gas Lift systems</p>
+    </div>
+    <div class="container">
+        <div class="grid">
+            <div class="card full-width" id="status-card">
+                <h2>System Status</h2>
+                <div class="metric-grid" id="metrics"></div>
+            </div>
+
+            <div class="card">
+                <h2>Lift Optimizer</h2>
+                <label>Lift Type</label>
+                <select id="opt-lift-type">
+                    <option value="ESP">ESP</option>
+                    <option value="rod_pump">Rod Pump</option>
+                    <option value="gas_lift">Gas Lift</option>
+                </select>
+                <div class="row-2">
+                    <div><label>Pump Speed (RPM)</label><input type="number" id="opt-speed" value="2500"></div>
+                    <div><label>Rod Load (klbf)</label><input type="number" id="opt-rod" value="20"></div>
+                </div>
+                <div class="row-2">
+                    <div><label>Gas Injection (MCF)</label><input type="number" id="opt-gas" value="500"></div>
+                    <div><label>Motor Current (A)</label><input type="number" id="opt-current" value="40"></div>
+                </div>
+                <div class="row-2">
+                    <div><label>Downhole Pressure (PSI)</label><input type="number" id="opt-pressure" value="2000"></div>
+                    <div><label>Well Depth (ft)</label><input type="number" id="opt-depth" value="6000"></div>
+                </div>
+                <label>Water Cut (%)</label>
+                <input type="number" id="opt-wc" value="50" min="0" max="100">
+                <button class="btn" onclick="runOptimize()">Run Optimization</button>
+                <div class="result-box" id="opt-result"></div>
+            </div>
+
+            <div class="card">
+                <h2>Failure Predictor</h2>
+                <label>Lift Type</label>
+                <select id="fail-lift-type">
+                    <option value="ESP">ESP</option>
+                    <option value="rod_pump">Rod Pump</option>
+                    <option value="gas_lift">Gas Lift</option>
+                </select>
+                <div class="row-2">
+                    <div><label>Pump Speed (RPM)</label><input type="number" id="fail-speed" value="3000"></div>
+                    <div><label>Rod Load (klbf)</label><input type="number" id="fail-rod" value="30"></div>
+                </div>
+                <div class="row-2">
+                    <div><label>Gas Injection (MCF)</label><input type="number" id="fail-gas" value="500"></div>
+                    <div><label>Motor Current (A)</label><input type="number" id="fail-current" value="60"></div>
+                </div>
+                <div class="row-2">
+                    <div><label>Downhole Pressure (PSI)</label><input type="number" id="fail-pressure" value="3000"></div>
+                    <div><label>Well Depth (ft)</label><input type="number" id="fail-depth" value="7000"></div>
+                </div>
+                <label>Water Cut (%)</label>
+                <input type="number" id="fail-wc" value="75" min="0" max="100">
+                <button class="btn" onclick="runFailure()">Predict Failure</button>
+                <div class="result-box" id="fail-result"></div>
+            </div>
+
+            <div class="card full-width">
+                <h2>Failure Probability Distribution</h2>
+                <div class="chart-container">
+                    <canvas id="failureChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card full-width">
+                <h2>Optimization Comparison</h2>
+                <div class="chart-container">
+                    <canvas id="optimizeChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let failureChart, optimizeChart;
+
+        async function loadStatus() {
+            try {
+                const resp = await fetch('/api/health');
+                const health = await resp.json();
+                const modelsResp = await fetch('/api/models');
+                const models = await modelsResp.json();
+
+                let html = '';
+                const statusClass = health.models_loaded.optimizer ? 'status-ok' : 'status-err';
+                html += `<div class="metric"><div class="value"><span class="status-dot ${statusClass}"></span>OK</div><div class="label">Optimizer</div></div>`;
+                const pStatus = health.models_loaded.failure_predictor ? 'status-ok' : 'status-err';
+                html += `<div class="metric"><div class="value"><span class="status-dot ${pStatus}"></span>OK</div><div class="label">Failure Predictor</div></div>`;
+
+                if (models.optimizer) {
+                    html += `<div class="metric"><div class="value">${models.optimizer.r2 ? models.optimizer.r2.toFixed(4) : 'N/A'}</div><div class="label">R2 Score</div></div>`;
+                }
+                if (models.failure_predictor) {
+                    html += `<div class="metric"><div class="value">${models.failure_predictor.accuracy ? models.failure_predictor.accuracy.toFixed(4) : 'N/A'}</div><div class="label">Accuracy</div></div>`;
+                }
+                if (models.optimizer) {
+                    html += `<div class="metric"><div class="value">${models.optimizer.mae ? models.optimizer.mae.toFixed(1) : 'N/A'}</div><div class="label">MAE (bbl/d)</div></div>`;
+                }
+                if (models.failure_predictor) {
+                    html += `<div class="metric"><div class="value">${models.failure_predictor.n_classes || 'N/A'}</div><div class="label">Failure Classes</div></div>`;
+                }
+                document.getElementById('metrics').innerHTML = html;
+            } catch (e) {
+                document.getElementById('metrics').innerHTML = '<div class="metric"><div class="value" style="color:#ef4444">OFFLINE</div><div class="label">API Status</div></div>';
+            }
+        }
+
+        async function runOptimize() {
+            const box = document.getElementById('opt-result');
+            box.style.display = 'block';
+            box.textContent = 'Optimizing...';
+            try {
+                const resp = await fetch('/api/optimize', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        lift_type: document.getElementById('opt-lift-type').value,
+                        pump_speed_rpm: parseFloat(document.getElementById('opt-speed').value) || 0,
+                        rod_load_klbf: parseFloat(document.getElementById('opt-rod').value) || 0,
+                        gas_injection_mcf: parseFloat(document.getElementById('opt-gas').value) || 0,
+                        motor_current_amp: parseFloat(document.getElementById('opt-current').value) || 0,
+                        downhole_pressure_psi: parseFloat(document.getElementById('opt-pressure').value) || 2000,
+                        well_depth_ft: parseFloat(document.getElementById('opt-depth').value) || 6000,
+                        water_cut_pct: parseFloat(document.getElementById('opt-wc').value) || 50,
+                    })
+                });
+                const data = await resp.json();
+                box.textContent = JSON.stringify(data, null, 2);
+                updateOptimizeChart(data);
+            } catch (e) {
+                box.textContent = 'Error: ' + e.message;
+            }
+        }
+
+        async function runFailure() {
+            const box = document.getElementById('fail-result');
+            box.style.display = 'block';
+            box.textContent = 'Predicting...';
+            try {
+                const resp = await fetch('/api/failure', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        lift_type: document.getElementById('fail-lift-type').value,
+                        pump_speed_rpm: parseFloat(document.getElementById('fail-speed').value) || 0,
+                        rod_load_klbf: parseFloat(document.getElementById('fail-rod').value) || 0,
+                        gas_injection_mcf: parseFloat(document.getElementById('fail-gas').value) || 0,
+                        motor_current_amp: parseFloat(document.getElementById('fail-current').value) || 0,
+                        downhole_pressure_psi: parseFloat(document.getElementById('fail-pressure').value) || 2000,
+                        well_depth_ft: parseFloat(document.getElementById('fail-depth').value) || 6000,
+                        water_cut_pct: parseFloat(document.getElementById('fail-wc').value) || 50,
+                    })
+                });
+                const data = await resp.json();
+                box.textContent = JSON.stringify(data, null, 2);
+                updateFailureChart(data.confidence);
+            } catch (e) {
+                box.textContent = 'Error: ' + e.message;
+            }
+        }
+
+        function updateFailureChart(confidence) {
+            const labels = Object.keys(confidence);
+            const values = Object.values(confidence).map(v => v * 100);
+            const colors = ['#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+            if (failureChart) failureChart.destroy();
+            failureChart = new Chart(document.getElementById('failureChart'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{ label: 'Probability %', data: values, backgroundColor: colors.slice(0, labels.length), borderRadius: 6 }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, max: 100, ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+                        x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function updateOptimizeChart(data) {
+            if (!data.optimal_params) return;
+            const labels = Object.keys(data.optimal_params);
+            const values = Object.values(data.optimal_params);
+            if (optimizeChart) optimizeChart.destroy();
+            optimizeChart = new Chart(document.getElementById('optimizeChart'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Optimal Value', data: values, backgroundColor: '#10b981', borderRadius: 6 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#e2e8f0' } },
+                        title: { display: true, text: `Predicted: ${data.predicted_production_bbl_d} bbl/d`, color: '#10b981' }
+                    },
+                    scales: {
+                        y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+                        x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        loadStatus();
+    </script>
+</body>
+</html>
