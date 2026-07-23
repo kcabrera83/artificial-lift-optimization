@@ -127,13 +127,13 @@ load_models()
 def api_docs():
     return jsonify({
         "openapi": "3.0.0",
-        "info": {"title": "Artificial Lift Optimization - Optimizacion de Elevacion Artificial", "version": "1.0.0"},
+        "info": {"title": "Artificial Lift Optimization - Artificial Lift Optimization", "version": "1.0.0"},
         "paths": {
-            "/": {"get": {"summary": "Dashboard principal"}},
-            "/api/health": {"get": {"summary": "Health check del servicio"}},
-            "/api/models": {"get": {"summary": "Informacion de los modelos entrenados"}},
-            "/api/optimize": {"post": {"summary": "Optimizar parametros de elevacion artificial"}},
-            "/api/failure": {"post": {"summary": "Predecir falla del sistema de elevacion"}},
+            "/": {"get": {"summary": "Main dashboard"}},
+            "/api/health": {"get": {"summary": "Service health check"}},
+            "/api/models": {"get": {"summary": "Information about trained models"}},
+            "/api/optimize": {"post": {"summary": "Optimize artificial lift parameters"}},
+            "/api/failure": {"post": {"summary": "Predict lift system failure"}},
         }
     })
 
