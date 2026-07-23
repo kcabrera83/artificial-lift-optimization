@@ -1,26 +1,56 @@
 import os
-import json
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import GradientBoostingRegressor
+from catboost import CatBoostRegressor
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import mean_absolute_error, r2_score
+from pymoo.algorithms.moo.nsga2 import NSGA2
+from pymoo.optimize import minimize
+from pymoo.core.problem import Problem
+from pymoo.operators.crossover.sbx import SBX
+from pymoo.operators.mutation.pm import PM
+from pymoo.operators.sampling.lhs import LHS
 
 from artificial_lift_optimization.data_generator import generate_dataset, LIFT_TYPES
 from artificial_lift_optimization.utils.preprocessor import Preprocessor
 
 
+class LiftProductionProblem(Problem):
+    def __init__(self, model, preprocessor, base_record, lift_type, param_ranges):
+        param_names = list(param_ranges.keys())
+        n_var = len(param_names)
+        xl = np.array([param_ranges[k][0] for k in param_names])
+        xu = np.array([param_ranges[k][1] for k in param_names])
+        super().__init__(n_var=n_var, n_obj=1, xl=xl, xu=xu)
+        self.model = model
+        self.preprocessor = preprocessor
+        self.base_record = base_record
+        self.lift_type = lift_type
+        self.param_names = param_names
+
+    def _evaluate(self, X, out, *args, **kwargs):
+        results = []
+        for row in X:
+            candidate = self.base_record.copy()
+            candidate["lift_type"] = self.lift_type
+            for i, name in enumerate(self.param_names):
+                candidate[name] = round(float(row[i]), 2)
+            X_t = self.preprocessor.transform_single(candidate)
+            prod = float(self.model.predict(X_t)[0])
+            results.append(-prod)
+        out["F"] = np.array(results).reshape(-1, 1)
+
+
 class LiftOptimizer:
     def __init__(self):
-        self.model = GradientBoostingRegressor(
-            n_estimators=200,
-            max_depth=6,
-            learning_rate=0.1,
-            subsample=0.8,
-            min_samples_split=10,
-            min_samples_leaf=5,
-            random_state=42,
+        self.model = CatBoostRegressor(
+            iterations=500,
+            learning_rate=0.05,
+            depth=8,
+            loss_function='RMSE',
+            verbose=0,
+            random_seed=42,
         )
         self.preprocessor = Preprocessor()
         self.metadata = {}
@@ -33,7 +63,7 @@ class LiftOptimizer:
             X, y, test_size=0.2, random_state=42
         )
 
-        self.model.fit(X_train, y_train)
+        self.model.fit(X_train, y_train, eval_set=(X_test, y_test), verbose=0)
 
         y_pred = self.model.predict(X_test)
         mae = mean_absolute_error(y_test, y_pred)
@@ -64,25 +94,30 @@ class LiftOptimizer:
             from artificial_lift_optimization.data_generator import LIFT_PARAMS
             param_ranges = LIFT_PARAMS[lift_type]
 
-        best_prod = -1
-        best_params = {}
-        rng = np.random.RandomState(42)
+        problem = LiftProductionProblem(
+            self.model, self.preprocessor, base_record, lift_type, param_ranges
+        )
 
-        for _ in range(n_iter):
-            candidate = base_record.copy()
-            candidate["lift_type"] = lift_type
-            for param, (lo, hi) in param_ranges.items():
-                if hi > lo:
-                    candidate[param] = round(rng.uniform(lo, hi), 2)
-                else:
-                    candidate[param] = 0
+        algorithm = NSGA2(
+            pop_size=min(n_iter, 200),
+            sampling=LHS(),
+            crossover=SBX(prob=0.9, eta=15),
+            mutation=PM(eta=20),
+        )
 
-            prod = self.predict_production(candidate)
-            if prod > best_prod:
-                best_prod = prod
-                best_params = {
-                    k: candidate[k] for k in param_ranges
-                }
+        res = minimize(
+            problem,
+            algorithm,
+            ('n_gen', max(n_iter // 20, 10)),
+            seed=42,
+            verbose=False,
+        )
+
+        best_idx = np.argmin(res.F[:, 0])
+        best_x = res.X[best_idx]
+        best_prod = -float(res.F[best_idx, 0])
+
+        best_params = {k: round(float(best_x[i]), 2) for i, k in enumerate(param_ranges.keys())}
 
         return {
             "lift_type": lift_type,

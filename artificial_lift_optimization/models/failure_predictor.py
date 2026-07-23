@@ -1,7 +1,7 @@
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
+from catboost import CatBoostClassifier
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import classification_report, accuracy_score
 
@@ -11,14 +11,14 @@ from artificial_lift_optimization.utils.preprocessor import Preprocessor
 
 class FailurePredictor:
     def __init__(self):
-        self.model = RandomForestClassifier(
-            n_estimators=200,
-            max_depth=12,
-            min_samples_split=5,
-            min_samples_leaf=3,
-            class_weight="balanced",
-            random_state=42,
-            n_jobs=-1,
+        self.model = CatBoostClassifier(
+            iterations=500,
+            learning_rate=0.05,
+            depth=8,
+            loss_function='MultiClass',
+            verbose=0,
+            random_seed=42,
+            class_weights='auto',
         )
         self.preprocessor = Preprocessor()
         self.failure_le = None
@@ -36,9 +36,9 @@ class FailurePredictor:
             stratify=y if use_stratify else None,
         )
 
-        self.model.fit(X_train, y_train)
+        self.model.fit(X_train, y_train, eval_set=(X_test, y_test), verbose=0)
 
-        y_pred = self.model.predict(X_test)
+        y_pred = self.model.predict(X_test).flatten()
         acc = accuracy_score(y_test, y_pred)
         all_labels = list(range(len(self.failure_le.classes_)))
         report = classification_report(
@@ -71,9 +71,9 @@ class FailurePredictor:
 
     def predict(self, record_dict):
         X = self.preprocessor.transform_single(record_dict)
-        pred_idx = self.model.predict(X)[0]
+        pred_idx = self.model.predict(X).flatten()[0]
         proba = self.model.predict_proba(X)[0]
-        label = self.failure_le.inverse_transform([pred_idx])[0]
+        label = self.failure_le.inverse_transform([int(pred_idx)])[0]
         confidence = {
             self.failure_le.inverse_transform([i])[0]: round(float(p), 4)
             for i, p in enumerate(proba)

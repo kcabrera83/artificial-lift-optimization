@@ -12,7 +12,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 def main():
     print("=" * 60)
-    print("  ARTIFICIAL LIFT OPTIMIZATION - MODEL TRAINING")
+    print("  ARTIFICIAL LIFT OPTIMIZATION - CatBoost + pymoo")
     print("=" * 60)
 
     print("\n[1/4] Generating synthetic dataset (8000 samples)...")
@@ -23,7 +23,7 @@ def main():
     print(f"  Failure modes: {df['failure_mode'].value_counts().to_dict()}")
     print(f"  Production range: {df['production_bbl_d'].min():.0f} - {df['production_bbl_d'].max():.0f} bbl/d")
 
-    print("\n[2/4] Training Lift Optimizer (GradientBoosting)...")
+    print("\n[2/4] Training Lift Optimizer (CatBoost + pymoo NSGA2)...")
     t0 = time.time()
     optimizer = LiftOptimizer()
     opt_meta = optimizer.train(df)
@@ -37,7 +37,7 @@ def main():
     for feat, imp in sorted_fi[:5]:
         print(f"    {feat}: {imp:.4f}")
 
-    print("\n[3/4] Training Failure Predictor (RandomForest)...")
+    print("\n[3/4] Training Failure Predictor (CatBoost)...")
     t0 = time.time()
     predictor = FailurePredictor()
     pred_meta = predictor.train(df)
@@ -49,7 +49,7 @@ def main():
     for cls, metrics in pred_meta["per_class_report"].items():
         print(f"    {cls}: P={metrics['precision']:.3f} R={metrics['recall']:.3f} F1={metrics['f1-score']:.3f}")
 
-    print("\n[4/4] Running optimization demo...")
+    print("\n[4/4] Running pymoo NSGA2 optimization demo...")
     base_record = {
         "lift_type": "ESP",
         "pump_speed_rpm": 2500,
@@ -61,7 +61,7 @@ def main():
         "water_cut_pct": 50,
     }
     for lt in ["ESP", "rod_pump", "gas_lift"]:
-        result = optimizer.optimize(base_record, lt)
+        result = optimizer.optimize(base_record, lt, n_iter=200)
         print(f"  {lt}: {result['predicted_production_bbl_d']:.0f} bbl/d -> {result['optimal_params']}")
 
     print(f"\nModels saved to: {OUTPUT_DIR}")

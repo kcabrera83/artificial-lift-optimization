@@ -38,12 +38,15 @@ models: dict[str, Any] = {}
 
 @app.on_event("startup")
 async def load_models():
-    opt_path = os.path.join(MODEL_DIR, "lift_optimizer.pkl")
-    pred_path = os.path.join(MODEL_DIR, "failure_predictor.pkl")
-    if os.path.exists(opt_path):
-        models["optimizer"] = LiftOptimizer.load(opt_path)
-    if os.path.exists(pred_path):
-        models["predictor"] = FailurePredictor.load(pred_path)
+    try:
+        opt_path = os.path.join(MODEL_DIR, "lift_optimizer.pkl")
+        pred_path = os.path.join(MODEL_DIR, "failure_predictor.pkl")
+        if os.path.exists(opt_path):
+            models["optimizer"] = LiftOptimizer.load(opt_path)
+        if os.path.exists(pred_path):
+            models["predictor"] = FailurePredictor.load(pred_path)
+    except Exception as e:
+        print(f"  Error loading models: {e}")
 
 
 class OptimizeRequest(BaseModel):
