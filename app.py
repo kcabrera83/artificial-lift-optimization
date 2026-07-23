@@ -122,5 +122,21 @@ def failure():
 
 load_models()
 
+
+@app.route("/api/docs")
+def api_docs():
+    return jsonify({
+        "openapi": "3.0.0",
+        "info": {"title": "Artificial Lift Optimization - Optimizacion de Elevacion Artificial", "version": "1.0.0"},
+        "paths": {
+            "/": {"get": {"summary": "Dashboard principal"}},
+            "/api/health": {"get": {"summary": "Health check del servicio"}},
+            "/api/models": {"get": {"summary": "Informacion de los modelos entrenados"}},
+            "/api/optimize": {"post": {"summary": "Optimizar parametros de elevacion artificial"}},
+            "/api/failure": {"post": {"summary": "Predecir falla del sistema de elevacion"}},
+        }
+    })
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5007, debug=True)
