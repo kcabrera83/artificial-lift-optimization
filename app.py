@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel
 
 from artificial_lift_optimization.models.lift_optimizer import LiftOptimizer
@@ -28,6 +29,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+Instrumentator().instrument(app).expose(app)
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "outputs", "models")
 models: dict[str, Any] = {}
@@ -150,3 +153,4 @@ async def failure(request: FailureRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=5007)
+
