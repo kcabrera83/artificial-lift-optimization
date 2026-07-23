@@ -1,142 +1,152 @@
+"""FastAPI web server for artificial lift optimization."""
+
 import os
-import json
 import traceback
-from flask import Flask, request, jsonify, render_template
+import sys
+from pathlib import Path
+from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 from artificial_lift_optimization.models.lift_optimizer import LiftOptimizer
 from artificial_lift_optimization.models.failure_predictor import FailurePredictor
 
-app = Flask(__name__)
+app = FastAPI(
+    title="Artificial Lift Optimization",
+    description="Artificial lift parameter optimization and failure mode prediction",
+    version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "outputs", "models")
-
-optimizer = None
-predictor = None
+models: dict[str, Any] = {}
 
 
-def load_models():
-    global optimizer, predictor
+@app.on_event("startup")
+async def load_models():
     opt_path = os.path.join(MODEL_DIR, "lift_optimizer.pkl")
     pred_path = os.path.join(MODEL_DIR, "failure_predictor.pkl")
     if os.path.exists(opt_path):
-        optimizer = LiftOptimizer.load(opt_path)
+        models["optimizer"] = LiftOptimizer.load(opt_path)
     if os.path.exists(pred_path):
-        predictor = FailurePredictor.load(pred_path)
+        models["predictor"] = FailurePredictor.load(pred_path)
 
 
-@app.route("/")
-def index():
-    return render_template("index.html")
+class OptimizeRequest(BaseModel):
+    lift_type: str = "ESP"
+    pump_speed_rpm: float = 0.0
+    rod_load_klbf: float = 0.0
+    gas_injection_mcf: float = 0.0
+    downhole_pressure_psi: float = 2000.0
+    motor_current_amp: float = 30.0
+    well_depth_ft: float = 6000.0
+    water_cut_pct: float = 50.0
+    n_iterations: int = 500
 
 
-@app.route("/api/health", methods=["GET"])
-def health():
-    return jsonify({
+class FailureRequest(BaseModel):
+    lift_type: str = "ESP"
+    pump_speed_rpm: float = 0.0
+    rod_load_klbf: float = 0.0
+    gas_injection_mcf: float = 0.0
+    downhole_pressure_psi: float = 2000.0
+    motor_current_amp: float = 30.0
+    well_depth_ft: float = 6000.0
+    water_cut_pct: float = 50.0
+
+
+@app.get("/api/health")
+async def health():
+    return {
         "status": "ok",
         "models_loaded": {
-            "optimizer": optimizer is not None,
-            "failure_predictor": predictor is not None,
+            "optimizer": "optimizer" in models,
+            "failure_predictor": "predictor" in models,
         },
-    })
+    }
 
 
-@app.route("/api/models", methods=["GET"])
-def models_info():
+@app.get("/api/models")
+async def models_info():
     info = {}
-    if optimizer:
+    if "optimizer" in models:
+        o = models["optimizer"]
         info["optimizer"] = {
             "type": "GradientBoostingRegressor",
-            "r2": optimizer.metadata.get("r2"),
-            "mae": optimizer.metadata.get("mae"),
-            "cv_r2_mean": optimizer.metadata.get("cv_r2_mean"),
-            "n_samples": optimizer.metadata.get("n_samples"),
-            "n_features": optimizer.metadata.get("n_features"),
-            "feature_importance": optimizer.metadata.get("feature_importance"),
+            "r2": o.metadata.get("r2"),
+            "mae": o.metadata.get("mae"),
+            "cv_r2_mean": o.metadata.get("cv_r2_mean"),
+            "n_samples": o.metadata.get("n_samples"),
+            "n_features": o.metadata.get("n_features"),
+            "feature_importance": o.metadata.get("feature_importance"),
         }
-    if predictor:
+    if "predictor" in models:
+        p = models["predictor"]
         info["failure_predictor"] = {
             "type": "RandomForestClassifier",
-            "accuracy": predictor.metadata.get("accuracy"),
-            "cv_accuracy_mean": predictor.metadata.get("cv_accuracy_mean"),
-            "n_classes": predictor.metadata.get("n_classes"),
-            "classes": predictor.metadata.get("classes"),
-            "per_class_report": predictor.metadata.get("per_class_report"),
+            "accuracy": p.metadata.get("accuracy"),
+            "cv_accuracy_mean": p.metadata.get("cv_accuracy_mean"),
+            "n_classes": p.metadata.get("n_classes"),
+            "classes": p.metadata.get("classes"),
+            "per_class_report": p.metadata.get("per_class_report"),
         }
-    return jsonify(info)
+    return info
 
 
-@app.route("/api/optimize", methods=["POST"])
-def optimize():
-    if optimizer is None:
-        return jsonify({"error": "Optimizer model not loaded"}), 503
+@app.post("/api/optimize")
+async def optimize(request: OptimizeRequest):
+    if "optimizer" not in models:
+        raise HTTPException(status_code=503, detail="Optimizer model not loaded")
     try:
-        data = request.get_json(force=True, silent=True)
-        if not data:
-            return jsonify({"error": "No JSON body provided"}), 400
-
-        lift_type = data.get("lift_type", "ESP")
         base_record = {
-            "lift_type": lift_type,
-            "pump_speed_rpm": data.get("pump_speed_rpm", 0),
-            "rod_load_klbf": data.get("rod_load_klbf", 0),
-            "gas_injection_mcf": data.get("gas_injection_mcf", 0),
-            "downhole_pressure_psi": data.get("downhole_pressure_psi", 2000),
-            "motor_current_amp": data.get("motor_current_amp", 30),
-            "well_depth_ft": data.get("well_depth_ft", 6000),
-            "water_cut_pct": data.get("water_cut_pct", 50),
+            "lift_type": request.lift_type,
+            "pump_speed_rpm": request.pump_speed_rpm,
+            "rod_load_klbf": request.rod_load_klbf,
+            "gas_injection_mcf": request.gas_injection_mcf,
+            "downhole_pressure_psi": request.downhole_pressure_psi,
+            "motor_current_amp": request.motor_current_amp,
+            "well_depth_ft": request.well_depth_ft,
+            "water_cut_pct": request.water_cut_pct,
         }
-        n_iter = data.get("n_iterations", 500)
-
-        result = optimizer.optimize(base_record, lift_type, n_iter=n_iter)
-        result["current_production_bbl_d"] = optimizer.predict_production(base_record)
-        return jsonify(result)
+        result = models["optimizer"].optimize(base_record, request.lift_type, n_iter=request.n_iterations)
+        result["current_production_bbl_d"] = models["optimizer"].predict_production(base_record)
+        return result
     except Exception as e:
-        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.route("/api/failure", methods=["POST"])
-def failure():
-    if predictor is None:
-        return jsonify({"error": "Failure predictor model not loaded"}), 503
+@app.post("/api/failure")
+async def failure(request: FailureRequest):
+    if "predictor" not in models:
+        raise HTTPException(status_code=503, detail="Failure predictor model not loaded")
     try:
-        data = request.get_json(force=True, silent=True)
-        if not data:
-            return jsonify({"error": "No JSON body provided"}), 400
-
         record = {
-            "lift_type": data.get("lift_type", "ESP"),
-            "pump_speed_rpm": data.get("pump_speed_rpm", 0),
-            "rod_load_klbf": data.get("rod_load_klbf", 0),
-            "gas_injection_mcf": data.get("gas_injection_mcf", 0),
-            "downhole_pressure_psi": data.get("downhole_pressure_psi", 2000),
-            "motor_current_amp": data.get("motor_current_amp", 30),
-            "well_depth_ft": data.get("well_depth_ft", 6000),
-            "water_cut_pct": data.get("water_cut_pct", 50),
+            "lift_type": request.lift_type,
+            "pump_speed_rpm": request.pump_speed_rpm,
+            "rod_load_klbf": request.rod_load_klbf,
+            "gas_injection_mcf": request.gas_injection_mcf,
+            "downhole_pressure_psi": request.downhole_pressure_psi,
+            "motor_current_amp": request.motor_current_amp,
+            "well_depth_ft": request.well_depth_ft,
+            "water_cut_pct": request.water_cut_pct,
         }
-
-        result = predictor.predict(record)
-        return jsonify(result)
+        result = models["predictor"].predict(record)
+        return result
     except Exception as e:
-        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
-
-
-load_models()
-
-
-@app.route("/api/docs")
-def api_docs():
-    return jsonify({
-        "openapi": "3.0.0",
-        "info": {"title": "Artificial Lift Optimization - Artificial Lift Optimization", "version": "1.0.0"},
-        "paths": {
-            "/": {"get": {"summary": "Main dashboard"}},
-            "/api/health": {"get": {"summary": "Service health check"}},
-            "/api/models": {"get": {"summary": "Information about trained models"}},
-            "/api/optimize": {"post": {"summary": "Optimize artificial lift parameters"}},
-            "/api/failure": {"post": {"summary": "Predict lift system failure"}},
-        }
-    })
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5007, debug=True)
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=5007)
