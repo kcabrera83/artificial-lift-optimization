@@ -1,6 +1,24 @@
 # Artificial Lift Optimization
 
-Machine learning project for optimizing artificial lift systems in oil wells.
+Machine learning project for optimizing artificial lift systems in oil wells using CatBoost and multi-objective optimization.
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|-----------|
+| ML Framework | **CatBoost** - gradient boosting with categorical features |
+| Multi-objective Optimization | **pymoo** - evolutionary algorithms |
+| Data Processing | pandas, numpy, joblib |
+| Web Server | **FastAPI** + uvicorn |
+| Monitoring | prometheus-fastapi-instrumentator |
+| Validation | pydantic v2 |
+| Visualization | matplotlib, seaborn |
+
+### Key Libraries
+- CatBoost - Gradient boosting with native categorical support
+- pymoo - Multi-objective optimization framework
+- FastAPI - Modern async web framework
+- pandas / numpy - Data processing
 
 ## Overview
 
@@ -12,8 +30,8 @@ This project provides ML-based optimization for three types of artificial lift s
 
 ## Models
 
-- **Lift Optimizer** (`GradientBoostingRegressor`): Predicts production rate and finds optimal parameters to maximize output.
-- **Failure Predictor** (`RandomForestClassifier`): Classifies equipment failure modes (normal, pump wear, gas lock, rod fatigue, motor overheat).
+- **Lift Optimizer** (CatBoost): Predicts production rate and finds optimal parameters to maximize output using pymoo.
+- **Failure Predictor** (RandomForestClassifier): Classifies equipment failure modes (normal, pump wear, gas lock, rod fatigue, motor overheat).
 
 ## API Endpoints
 
@@ -85,6 +103,6 @@ artificial-lift-optimization/
 └── README.md
 ```
 
-## Author
+---
 
 Elaborado por Ing. Kelvin Cabrera
