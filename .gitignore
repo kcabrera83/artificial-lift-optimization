@@ -15,3 +15,6 @@ outputs/models/*.pkl
 outputs/models/*.joblib
 .flask_session/
 instance/
+
+# Streamlit Cloud model files
+!outputs/models/*.pkl
