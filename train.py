@@ -11,13 +11,11 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
 def main():
-    print("=" * 60)
-    print("  ARTIFICIAL LIFT OPTIMIZATION - CatBoost + pymoo")
-    print("=" * 60)
+    pass
 
     print("\n[1/4] Generating synthetic dataset (8000 samples)...")
     t0 = time.time()
-    df = generate_dataset(n_samples=8000, random_state=42)
+    df = generate_dataset(n_samples=8000, random_state=2024)
     print(f"  Generated {len(df)} samples in {time.time()-t0:.2f}s")
     print(f"  Lift types: {df['lift_type'].value_counts().to_dict()}")
     print(f"  Failure modes: {df['failure_mode'].value_counts().to_dict()}")
@@ -65,9 +63,7 @@ def main():
         print(f"  {lt}: {result['predicted_production_bbl_d']:.0f} bbl/d -> {result['optimal_params']}")
 
     print(f"\nModels saved to: {OUTPUT_DIR}")
-    print("=" * 60)
-    print("  TRAINING COMPLETE")
-    print("=" * 60)
+    pass
 
 
 if __name__ == "__main__":

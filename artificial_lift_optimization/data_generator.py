@@ -126,7 +126,7 @@ def _failure_label(row):
     return max(scores, key=scores.get)
 
 
-def generate_dataset(n_samples=5000, random_state=42):
+def generate_dataset(n_samples=5000, random_state=2024):
     rng = np.random.RandomState(random_state)
     records = []
     for _ in range(n_samples):

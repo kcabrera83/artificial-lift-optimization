@@ -1,12 +1,10 @@
-"""FastAPI web server for artificial lift optimization."""
-
 import os
 import traceback
 import sys
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+import sys; sys.path.append(str(Path(__file__).resolve().parent))
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,7 +17,7 @@ from artificial_lift_optimization.models.failure_predictor import FailurePredict
 app = FastAPI(
     title="Artificial Lift Optimization",
     description="Artificial lift parameter optimization and failure mode prediction",
-    version="1.0.0",
+    version="0.1",
 )
 
 app.add_middleware(

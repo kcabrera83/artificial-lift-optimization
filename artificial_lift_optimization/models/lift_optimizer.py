@@ -50,7 +50,7 @@ class LiftOptimizer:
             depth=8,
             loss_function='RMSE',
             verbose=0,
-            random_seed=42,
+            random_seed=2024,
         )
         self.preprocessor = Preprocessor()
         self.metadata = {}
@@ -60,7 +60,7 @@ class LiftOptimizer:
         y = df["production_bbl_d"].values
 
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42
+            X, y, test_size=0.2, random_state=2024
         )
 
         self.model.fit(X_train, y_train, eval_set=(X_test, y_test), verbose=0)
@@ -109,7 +109,7 @@ class LiftOptimizer:
             problem,
             algorithm,
             ('n_gen', max(n_iter // 20, 10)),
-            seed=42,
+            seed=2024,
             verbose=False,
         )
 

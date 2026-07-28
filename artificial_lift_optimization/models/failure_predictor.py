@@ -17,7 +17,7 @@ class FailurePredictor:
             depth=8,
             loss_function='MultiClass',
             verbose=0,
-            random_seed=42,
+            random_seed=2024,
             class_weights='auto',
         )
         self.preprocessor = Preprocessor()
@@ -32,7 +32,7 @@ class FailurePredictor:
         use_stratify = min_class_count >= 2
 
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42,
+            X, y, test_size=0.2, random_state=2024,
             stratify=y if use_stratify else None,
         )
 
