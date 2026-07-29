@@ -1,5 +1,6 @@
 import streamlit as st
 import pickle
+import joblib
 import numpy as np
 import sys
 from pathlib import Path
@@ -12,7 +13,7 @@ st.markdown("Optimize artificial lift systems (ESP, Rod Pump, Gas Lift) to maxim
 @st.cache_resource
 def load_models():
     d = Path(__file__).parent / "outputs" / "models"
-    return {k: pickle.load(open(d / v, "rb")) for k, v in [("optimizer", "lift_optimizer.pkl")]}
+    return {k: joblib.load(d / v) for k, v in [("optimizer", "lift_optimizer.pkl")]}
 
 models = load_models()
 
